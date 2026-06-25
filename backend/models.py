@@ -22,6 +22,9 @@ class Store(BaseModel):
 class GenerateStoreRequest(BaseModel):
     prompt: str
 
+class AgentRunRequest(BaseModel):
+    goal: str
+
 class AddProductRequest(BaseModel):
     name: str
     description: str

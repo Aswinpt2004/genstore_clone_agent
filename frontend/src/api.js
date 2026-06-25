@@ -5,6 +5,9 @@ const BASE = '/api'
 export const generateStore = (prompt) =>
   axios.post(`${BASE}/generate`, { prompt }).then(r => r.data)
 
+export const runAgent = (goal) =>
+  axios.post(`${BASE}/agent/run`, { goal }).then(r => r.data)
+
 export const listStores = () =>
   axios.get(`${BASE}/stores`).then(r => r.data)
 

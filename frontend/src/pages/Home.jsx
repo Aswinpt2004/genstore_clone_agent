@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listStores } from '../api'
+import AgentBuilder from '../components/AgentBuilder'
 import PromptBox from '../components/PromptBox'
 import StoreCard from '../components/StoreCard'
 import { pollinationsImageUrl } from '../utils/format'
@@ -18,6 +19,10 @@ export default function Home() {
     setStores((current) => current.filter((store) => store.id !== id))
   }
 
+  const handleStoreCreated = (store) => {
+    setStores((current) => [store, ...current.filter((item) => item.id !== store.id)])
+  }
+
   return (
     <main className="container">
       <section className="hero">
@@ -34,6 +39,7 @@ export default function Home() {
       </section>
 
       <PromptBox />
+      <AgentBuilder onStoreCreated={handleStoreCreated} />
 
       <div className="section-heading">
         <div>

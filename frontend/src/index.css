@@ -167,6 +167,79 @@ h3 {
   z-index: 2;
 }
 
+.agent-panel {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.55fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  margin: 28px 0 36px;
+}
+
+.agent-panel h2 {
+  margin-bottom: 10px;
+}
+
+.agent-workspace {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.agent-result {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid rgba(24, 32, 38, 0.1);
+  padding-top: 16px;
+}
+
+.agent-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid rgba(24, 32, 38, 0.09);
+  border-radius: 8px;
+  background: #f8fbfa;
+}
+
+.agent-step span {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #0f766e;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.agent-step strong {
+  display: block;
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+.agent-step p,
+.launch-advice p {
+  margin-bottom: 0;
+  color: #4d5b63;
+  line-height: 1.5;
+}
+
+.launch-advice {
+  padding: 14px;
+  border-left: 4px solid #c25a2c;
+  border-radius: 8px;
+  background: #fff8ea;
+}
+
 .prompt-box textarea,
 .field,
 .textarea {
@@ -501,7 +574,8 @@ h3 {
   }
 
   .dashboard-hero,
-  .manager-layout {
+  .manager-layout,
+  .agent-panel {
     grid-template-columns: 1fr;
   }
 

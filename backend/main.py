@@ -2,10 +2,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from models import (
     GenerateStoreRequest, AddProductRequest,
-    UpdateStoreRequest, ChatRequest
+    UpdateStoreRequest, ChatRequest, AgentRunRequest
 )
 import storage
 import gemini as ai
+import agent as store_agent
 from datetime import datetime
 import uuid
 from urllib.parse import quote
@@ -66,6 +67,15 @@ async def generate_store(request: GenerateStoreRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Store generation failed: {str(e)}")
+
+
+@app.post("/api/agent/run")
+async def run_agent(request: AgentRunRequest):
+    """Run an autonomous store-building agent that plans and calls backend tools."""
+    try:
+        return store_agent.run_store_agent(request.goal)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent run failed: {str(e)}")
 
 
 # -- Store CRUD ------------------------------------------------
