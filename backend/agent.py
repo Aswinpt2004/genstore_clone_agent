@@ -43,6 +43,9 @@ def _build_store(generated: dict) -> dict:
                 f"{product['name']} {product.get('category', store['category'])}, premium ecommerce product photo for {store['name']}",
                 product_id,
             ),
+            "brand": product.get("brand"),
+            "rating": product.get("rating"),
+            "review_count": product.get("review_count"),
         })
 
     storage.save_store(store)
@@ -56,10 +59,20 @@ def _current_store(store_id: str | None) -> dict | None:
 
 
 def _agent_decision(goal: str, steps: list[dict], store: dict | None, launch_advice: str) -> dict:
+    # Only send a condensed summary of the store (not full descriptions/image
+    # URLs) so the prompt stays small across repeated decision calls.
+    store_summary = None
+    if store:
+        store_summary = {
+            "name": store["name"],
+            "category": store["category"],
+            "tagline": store["tagline"],
+            "product_count": len(store.get("products", [])),
+            "product_names": [p["name"] for p in store.get("products", [])],
+        }
     state = {
         "store_exists": bool(store),
-        "product_count": len(store.get("products", [])) if store else 0,
-        "store": store,
+        "store": store_summary,
         "launch_advice_written": bool(launch_advice),
         "completed_steps": steps,
     }
@@ -129,19 +142,21 @@ def _execute_tool(tool: str, args: dict, goal: str, store_id: str | None, launch
                     f"{product['name']} {product.get('category', store['category'])}, premium ecommerce product photo for {store['name']}",
                     product_id,
                 ),
+                "brand": product.get("brand"),
+                "rating": product.get("rating"),
+                "review_count": product.get("review_count"),
             })
         return store["id"], launch_advice, f"Added {len(products)} complementary products."
 
     if tool == "improve_all_descriptions":
+        products = store.get("products", [])
+        new_descriptions = ai.improve_all_descriptions(products, store["category"]) if products else {}
         improved_count = 0
-        for product in store.get("products", []):
-            new_description = ai.improve_product_description(
-                product["name"],
-                product["description"],
-                store["category"],
-            )
-            storage.update_product(store["id"], product["id"], {"description": new_description})
-            improved_count += 1
+        for product in products:
+            new_description = new_descriptions.get(product["id"])
+            if new_description:
+                storage.update_product(store["id"], product["id"], {"description": new_description})
+                improved_count += 1
         return store["id"], launch_advice, f"Improved descriptions for {improved_count} products."
 
     if tool == "update_store_branding":
@@ -165,7 +180,15 @@ def _execute_tool(tool: str, args: dict, goal: str, store_id: str | None, launch
     return store["id"], launch_advice, args.get("summary", "Agent finished the store build.")
 
 
-def run_store_agent(goal: str) -> dict:
+def run_store_agent_steps(goal: str):
+    """Generator that yields live progress events while the agent works.
+
+    Event shapes:
+      {"type": "thinking"}                                  - deciding the next tool
+      {"type": "running", "tool": ..., "thought": ...}       - a tool started executing
+      {"type": "step", "tool": ..., "thought": ..., "observation": ...} - a tool finished
+      {"type": "done", "result": {...}}                      - final result, same shape run_store_agent used to return
+    """
     steps = []
     store_id = None
     launch_advice = ""
@@ -173,6 +196,7 @@ def run_store_agent(goal: str) -> dict:
 
     for _ in range(MAX_AGENT_STEPS):
         store = _current_store(store_id)
+        yield {"type": "thinking"}
         decision = _agent_decision(goal, steps, store, launch_advice)
         tool = decision.get("tool", "finish")
         args = decision.get("args") or {}
@@ -186,23 +210,29 @@ def run_store_agent(goal: str) -> dict:
                 tool, args = "finish", {"summary": "Store build completed."}
 
         if tool == "finish":
-            steps.append({
+            step = {
                 "tool": "finish",
                 "thought": decision.get("thought", "The goal is complete."),
                 "observation": args.get("summary", "Agent finished the store build."),
-            })
+            }
+            steps.append(step)
+            yield {"type": "step", **step}
             break
 
+        yield {"type": "running", "tool": tool, "thought": decision.get("thought", "")}
         store_id, launch_advice, observation = _execute_tool(tool, args, goal, store_id, launch_advice)
         used_tools.add(tool)
-        steps.append({
+        step = {
             "tool": tool,
             "thought": decision.get("thought", ""),
             "observation": observation,
-        })
+        }
+        steps.append(step)
+        yield {"type": "step", **step}
 
     store = _current_store(store_id)
     if store and not launch_advice:
+        yield {"type": "running", "tool": "write_launch_advice", "thought": "The store needs launch guidance before finishing."}
         store_id, launch_advice, observation = _execute_tool(
             "write_launch_advice",
             {"question": f"Create a launch plan for {store['name']}."},
@@ -210,17 +240,28 @@ def run_store_agent(goal: str) -> dict:
             store_id,
             launch_advice,
         )
-        steps.append({
+        step = {
             "tool": "write_launch_advice",
             "thought": "The store needs launch guidance before finishing.",
             "observation": observation,
-        })
+        }
+        steps.append(step)
+        yield {"type": "step", **step}
         store = _current_store(store_id)
 
-    return {
+    result = {
         "goal": goal,
         "store": store,
         "steps": steps,
         "launch_advice": launch_advice,
         "summary": f"Agent completed {store['name']} with {len(store.get('products', []))} products." if store else "Agent could not create a store.",
     }
+    yield {"type": "done", "result": result}
+
+
+def run_store_agent(goal: str) -> dict:
+    result = None
+    for event in run_store_agent_steps(goal):
+        if event["type"] == "done":
+            result = event["result"]
+    return result

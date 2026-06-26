@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listStores } from '../api'
 import AgentBuilder from '../components/AgentBuilder'
-import PromptBox from '../components/PromptBox'
 import StoreCard from '../components/StoreCard'
 import { pollinationsImageUrl } from '../utils/format'
 
@@ -38,7 +37,6 @@ export default function Home() {
         </div>
       </section>
 
-      <PromptBox />
       <AgentBuilder onStoreCreated={handleStoreCreated} />
 
       <div className="section-heading">

@@ -9,6 +9,9 @@ class Product(BaseModel):
     category: str
     stock: int = 100
     image_url: Optional[str] = None
+    brand: Optional[str] = None
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
 
 class Store(BaseModel):
     id: str
@@ -32,6 +35,9 @@ class AddProductRequest(BaseModel):
     category: str
     stock: int = 100
     image_url: Optional[str] = None
+    brand: Optional[str] = None
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
 
 class UpdateStoreRequest(BaseModel):
     name: Optional[str] = None

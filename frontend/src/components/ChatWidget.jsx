@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { sendChat } from '../api'
+import MarkdownLite from './MarkdownLite'
 
 export default function ChatWidget({ storeId, storeName }) {
   const [open, setOpen] = useState(false)
@@ -52,7 +53,7 @@ export default function ChatWidget({ storeId, storeName }) {
       <div className="chat-messages">
         {messages.map((message, index) => (
           <div className={`message ${message.role}`} key={`${message.role}-${index}`}>
-            {message.text}
+            {message.role === 'ai' ? <MarkdownLite text={message.text} /> : message.text}
           </div>
         ))}
         {loading && <div className="message">Thinking...</div>}

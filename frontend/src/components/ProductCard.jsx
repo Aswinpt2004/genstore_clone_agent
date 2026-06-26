@@ -20,6 +20,7 @@ export default function ProductCard({
     category: product.category || '',
     stock: product.stock ?? 100,
     image_url: product.image_url || '',
+    brand: product.brand || '',
   })
 
   const updateField = (key, value) => {
@@ -34,6 +35,7 @@ export default function ProductCard({
       category: product.category || '',
       stock: product.stock ?? 100,
       image_url: product.image_url || '',
+      brand: product.brand || '',
     })
   }
 
@@ -78,6 +80,11 @@ export default function ProductCard({
     await deleteProduct(storeId, product.id)
     onDelete?.(product.id)
   }
+
+  const stockStatus =
+    product.stock <= 0 ? 'Out of stock' : product.stock < 10 ? 'Low stock' : 'In stock'
+  const stockClass =
+    product.stock <= 0 ? 'stock-out' : product.stock < 10 ? 'stock-low' : 'stock-ok'
 
   if (editable && editing) {
     return (
@@ -136,15 +143,27 @@ export default function ProductCard({
             </label>
           </div>
 
-          <label className="label">
-            Category
-            <input
-              className="field"
-              value={form.category}
-              onChange={(e) => updateField('category', e.target.value)}
-              required
-            />
-          </label>
+          <div className="form-grid">
+            <label className="label">
+              Category
+              <input
+                className="field"
+                value={form.category}
+                onChange={(e) => updateField('category', e.target.value)}
+                required
+              />
+            </label>
+
+            <label className="label">
+              Brand
+              <input
+                className="field"
+                value={form.brand}
+                onChange={(e) => updateField('brand', e.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+          </div>
 
           <label className="label">
             Image URL
@@ -184,14 +203,23 @@ export default function ProductCard({
   return (
     <article className="card product-card">
       <img className="product-image" src={productImageUrl(product, storeName)} alt={product.name} />
+      {product.brand && <span className="brand-tag">{product.brand}</span>}
       <h3>{product.name}</h3>
+      {(product.rating || product.review_count) && (
+        <div className="product-rating">
+          <span className="stars">★ {product.rating?.toFixed(1) ?? '—'}</span>
+          {product.review_count != null && (
+            <span className="muted">({product.review_count} reviews)</span>
+          )}
+        </div>
+      )}
       <p className="muted">{product.description}</p>
       <p className="price" style={{ color: themeColor || '#2563eb' }}>
         {formatRupees(product.price)}
       </p>
       <div className="row space-between">
         <span className="tag">{product.category}</span>
-        <span className="muted">Stock: {product.stock}</span>
+        <span className={`stock-badge ${stockClass}`}>{stockStatus} ({product.stock})</span>
       </div>
 
       {editable ? (

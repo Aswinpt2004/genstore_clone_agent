@@ -12,7 +12,7 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     raise RuntimeError("GEMINI_API_KEY is not set. Add it to backend/.env.")
 
-default_models = "gemini-3.5-flash,gemini-2.5-flash,gemini-2.5-flash-lite"
+default_models = "gemini-2.5-flash,gemini-2.5-flash-lite"
 model_names = [
     name.strip()
     for name in os.getenv("GEMINI_MODELS", os.getenv("GEMINI_MODEL", default_models)).split(",")
@@ -87,12 +87,15 @@ The JSON must have exactly this structure:
       \"price\": 2499,
       \"category\": \"subcategory\",
       \"stock\": 100,
-      \"image_url\": null
+      \"image_url\": null,
+      \"brand\": \"A plausible brand name for this product\",
+      \"rating\": 4.3,
+      \"review_count\": 128
     }}
   ]
 }}
 
-Generate exactly 5 products. Make them realistic, specific, and varied. Prices must be in Indian rupees as plain numbers, not dollars. Return ONLY the JSON object."""
+Generate exactly 5 products. Make them realistic, specific, and varied. Prices must be in Indian rupees as plain numbers, not dollars. rating must be a number between 3.5 and 5.0 with one decimal place. review_count must be a realistic integer between 8 and 900. Return ONLY the JSON object."""
 
     cleaned = clean_json(generate_text(prompt))
     return json.loads(cleaned)
@@ -116,11 +119,14 @@ Return ONLY valid JSON array, no explanation, no markdown, no code fences.
     \"price\": 2499,
     \"category\": \"subcategory\",
     \"stock\": 100,
-    \"image_url\": null
+    \"image_url\": null,
+    \"brand\": \"A plausible brand name for this product\",
+    \"rating\": 4.3,
+    \"review_count\": 128
   }}
 ]
 
-Return ONLY the JSON array."""
+rating must be a number between 3.5 and 5.0 with one decimal place. review_count must be a realistic integer between 8 and 900. Return ONLY the JSON array."""
 
     cleaned = clean_json(generate_text(prompt))
     return json.loads(cleaned)
@@ -165,4 +171,26 @@ Write a new description in 2 sentences max. Be specific, highlight benefits, cre
 Return ONLY the new description text, no quotes, no explanation."""
 
     return generate_text(prompt).strip()
+
+
+def improve_all_descriptions(products: list, store_category: str) -> dict:
+    """Rewrite every product's description in a single call. Returns {product_id: new_description}."""
+    catalog = "\n".join(
+        f"{p['id']}: {p['name']} -- {p['description']}" for p in products
+    )
+    prompt = f"""Rewrite each of these product descriptions to be more compelling and conversion-focused.
+Store category: {store_category}
+
+Products (id: name -- current description):
+{catalog}
+
+Return ONLY a valid JSON object mapping each product id to its new description (2 sentences max, specific, benefit-focused). No markdown, no explanation.
+
+{{
+  "<product_id>": "new description",
+  ...
+}}"""
+
+    cleaned = clean_json(generate_text(prompt))
+    return json.loads(cleaned)
 

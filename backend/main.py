@@ -1,5 +1,8 @@
+import json
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from models import (
     GenerateStoreRequest, AddProductRequest,
     UpdateStoreRequest, ChatRequest, AgentRunRequest
@@ -59,7 +62,10 @@ async def generate_store(request: GenerateStoreRequest):
                 "image_url": product.get("image_url") or pollinations_image_url(
                     f"{product['name']} {product.get('category', store_data['category'])}, premium ecommerce product photo for {store_data['name']}",
                     product_id
-                )
+                ),
+                "brand": product.get("brand"),
+                "rating": product.get("rating"),
+                "review_count": product.get("review_count"),
             })
         
         storage.save_store(store_data)
@@ -76,6 +82,19 @@ async def run_agent(request: AgentRunRequest):
         return store_agent.run_store_agent(request.goal)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent run failed: {str(e)}")
+
+
+@app.post("/api/agent/run/stream")
+async def run_agent_stream(request: AgentRunRequest):
+    """Same agent run, but streamed as server-sent events so the UI can show live progress."""
+    def event_source():
+        try:
+            for event in store_agent.run_store_agent_steps(request.goal):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(event_source(), media_type="text/event-stream")
 
 
 # -- Store CRUD ------------------------------------------------
@@ -133,7 +152,10 @@ async def add_product(store_id: str, request: AddProductRequest):
         "image_url": request.image_url or pollinations_image_url(
             f"{request.name} {request.category}, premium ecommerce product photo for {store['name']}",
             f"{store_id}-{request.name}"
-        )
+        ),
+        "brand": request.brand,
+        "rating": request.rating,
+        "review_count": request.review_count,
     }
     updated_store = storage.add_product_to_store(store_id, product)
     return updated_store
@@ -162,7 +184,10 @@ async def generate_products(store_id: str):
                 "image_url": product.get("image_url") or pollinations_image_url(
                     f"{product['name']} {product.get('category', store['category'])}, premium ecommerce product photo for {store['name']}",
                     product_id
-                )
+                ),
+                "brand": product.get("brand"),
+                "rating": product.get("rating"),
+                "review_count": product.get("review_count"),
             })
         return storage.get_store_by_id(store_id)
     except Exception as e:

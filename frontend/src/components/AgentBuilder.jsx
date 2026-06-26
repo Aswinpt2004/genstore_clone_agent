@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { runAgent } from '../api'
-import LoadingSpinner from './LoadingSpinner'
+import { runAgentStream } from '../api'
+import MarkdownLite from './MarkdownLite'
 
 const AGENT_EXAMPLES = [
   'Build a luxury watch store for young professionals and prepare a launch plan',
@@ -9,11 +9,24 @@ const AGENT_EXAMPLES = [
   'Launch a premium sneaker store for college students with marketing advice',
 ]
 
+const TOOL_LABELS = {
+  create_store: 'Creating the store',
+  generate_more_products: 'Generating more products',
+  improve_all_descriptions: 'Improving product descriptions',
+  update_store_branding: 'Refining store branding',
+  write_launch_advice: 'Writing launch advice',
+  finish: 'Wrapping up',
+}
+
+const toolLabel = (tool) => TOOL_LABELS[tool] || tool.replaceAll('_', ' ')
+
 export default function AgentBuilder({ onStoreCreated }) {
   const [goal, setGoal] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [liveSteps, setLiveSteps] = useState([])
+  const [status, setStatus] = useState('')
   const navigate = useNavigate()
 
   const handleRun = async () => {
@@ -21,9 +34,20 @@ export default function AgentBuilder({ onStoreCreated }) {
     setLoading(true)
     setError('')
     setResult(null)
+    setLiveSteps([])
+    setStatus('Thinking about the next step...')
 
     try {
-      const agentResult = await runAgent(goal.trim())
+      const agentResult = await runAgentStream(goal.trim(), (event) => {
+        if (event.type === 'thinking') {
+          setStatus('Thinking about the next step...')
+        } else if (event.type === 'running') {
+          setStatus(`${toolLabel(event.tool)}...`)
+        } else if (event.type === 'step') {
+          setLiveSteps((current) => [...current, event])
+          setStatus('Thinking about the next step...')
+        }
+      })
       setResult(agentResult)
       if (agentResult.store) onStoreCreated?.(agentResult.store)
     } catch (err) {
@@ -31,6 +55,7 @@ export default function AgentBuilder({ onStoreCreated }) {
       setError(`Agent failed: ${detail}`)
     } finally {
       setLoading(false)
+      setStatus('')
     }
   }
 
@@ -71,7 +96,23 @@ export default function AgentBuilder({ onStoreCreated }) {
           ))}
         </div>
 
-        {loading && <LoadingSpinner message="Agent is planning and calling tools..." />}
+        {loading && (
+          <div className="agent-progress">
+            {liveSteps.map((step, index) => (
+              <article className="agent-step" key={`${step.tool}-${index}`}>
+                <span>{index + 1}</span>
+                <div>
+                  <strong>{toolLabel(step.tool)}</strong>
+                  <p>{step.observation}</p>
+                </div>
+              </article>
+            ))}
+            <div className="agent-progress-current">
+              <span className="spinner-dot" />
+              {status}
+            </div>
+          </div>
+        )}
         {error && <p className="error">{error}</p>}
 
         {result && (
@@ -93,7 +134,7 @@ export default function AgentBuilder({ onStoreCreated }) {
                 <article className="agent-step" key={`${step.tool}-${index}`}>
                   <span>{index + 1}</span>
                   <div>
-                    <strong>{step.tool.replaceAll('_', ' ')}</strong>
+                    <strong>{toolLabel(step.tool)}</strong>
                     <p>{step.observation}</p>
                   </div>
                 </article>
@@ -103,7 +144,7 @@ export default function AgentBuilder({ onStoreCreated }) {
             {result.launch_advice && (
               <div className="launch-advice">
                 <strong>Launch advice</strong>
-                <p>{result.launch_advice}</p>
+                <MarkdownLite text={result.launch_advice} />
               </div>
             )}
           </div>
